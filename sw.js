@@ -1,39 +1,34 @@
-// שומר את כל האפליקציה בטלפון. כשיש אינטרנט, מעדכן ברקע תוכן חדש.
-// בכל עדכון תוכן: להעלות את המספר בשורה הבאה.
-const CACHE = "boker-v3";
-const FILES = [
-  "./", "index.html", "content.js", "stories.js", "stories2.js", "manifest.json", "icon-180.png", "icon-512.png",
+// שומר את האפליקציה בטלפון. data/index.json תמיד מנסה קודם מהרשת (כדי לקבל סיפורים חדשים),
+// כל השאר: מהזיכרון מיד, ומתעדכן ברקע כשיש אינטרנט.
+const CACHE = "boker-1795034258";
+const CORE = ["./", "index.html", "manifest.json", "icon-180.png", "icon-512.png", "data/index.json",
   "fonts/heebo-he-400.woff2", "fonts/heebo-he-500.woff2", "fonts/heebo-he-700.woff2", "fonts/heebo-he-900.woff2",
-  "fonts/heebo-la-400.woff2", "fonts/heebo-la-500.woff2", "fonts/heebo-la-700.woff2", "fonts/heebo-la-900.woff2",
-  "img/alexandria.jpg", "img/btc-gpu.jpg", "img/btc-hero.jpg", "img/btc-satoshi.jpg",
-  "img/jordan-arena.jpg", "img/jordan-baseball.jpg", "img/jordan-hero.jpg", "img/marcus.jpg",
-  "img/money.jpg", "img/nike-hero.jpg", "img/nike-kobe.jpg", "img/nike-waffle.jpg",
-  "img/nokia.jpg", "img/tulips.jpg"
-];
+  "fonts/heebo-la-400.woff2", "fonts/heebo-la-500.woff2", "fonts/heebo-la-700.woff2", "fonts/heebo-la-900.woff2"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
 });
-
 self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+  // שומרים את המטמון הקודם (סיפורים ותמונות) ומעבירים אותו לגרסה החדשה
+  e.waitUntil((async () => {
+    const keys = await caches.keys(), cur = await caches.open(CACHE);
+    for (const k of keys) if (k !== CACHE) {
+      const old = await caches.open(k);
+      for (const req of await old.keys()) { if (!(await cur.match(req))) { const r = await old.match(req); if (r) await cur.put(req, r); } }
+      await caches.delete(k);
+    }
+    await self.clients.claim();
+  })());
 });
-
 self.addEventListener("fetch", e => {
-  const req = e.request;
-  if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
-  e.respondWith(
-    caches.open(CACHE).then(async cache => {
-      const key = req.mode === "navigate" ? "index.html" : req;
-      const cached = await cache.match(key, { ignoreSearch: true });
-      const network = fetch(req).then(res => {
-        if (res && res.ok) cache.put(key, res.clone());
-        return res;
-      }).catch(() => cached);
-      return cached || network;
-    })
-  );
+  const req = e.request, url = new URL(req.url);
+  if (req.method !== "GET" || url.origin !== location.origin) return;
+  const key = req.mode === "navigate" ? "index.html" : url.pathname.replace(/^.*?\/boker\//, "").replace(/^\//, "") || "index.html";
+  e.respondWith(caches.open(CACHE).then(async cache => {
+    const cached = await cache.match(key, { ignoreSearch: true }) || await cache.match(req, { ignoreSearch: true });
+    const net = fetch(req).then(res => { if (res && res.ok) cache.put(key, res.clone()); return res; });
+    if (key === "data/index.json" || key === "index.html") return net.catch(() => cached);
+    if (cached) { net.catch(() => {}); return cached; }
+    return net;
+  }));
 });

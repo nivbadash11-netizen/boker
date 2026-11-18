@@ -141,28 +141,12 @@ img{display:block}
 <div id="app"></div>
 <div class="sheet-bg" id="sbg"></div>
 <div class="sheet" id="sheet"></div>
-<script src="content.js"></script>
-<script src="stories.js"></script>
-<script src="stories2.js"></script>
 <script>
 (function(){
 "use strict";
-var NAME = "ניב";
-var WPM = 120, WEEK = 7*864e5, KEY = "boker.v1";
+var NAME = "ניב", WEEK = 7*864e5, KEY = "boker.v2";
 var app = document.getElementById("app");
-var LIB = window.LIBRARY || {items:[],series:[]};
-var FULL = window.FULL || [], META = window.META || {}, SCOV = window.SERIES_COVER || {};
-
-/* מיזוג: גרסה מלאה מחליפה את הקצרה */
-var byId = {};
-LIB.items.forEach(function(a){ var m = META[a.id]||{}; byId[a.id] = Object.assign({}, a, m, {full:false}); });
-FULL.forEach(function(a){ byId[a.id] = Object.assign({}, a, {full:true}); });
-var ITEMS = FULL.map(function(a){return byId[a.id];}).concat(LIB.items.filter(function(a){return !FULL.some(function(f){return f.id===a.id;});}).map(function(a){return byId[a.id];}));
-var SERIES = LIB.series.map(function(s){ return Object.assign({}, s, {cover:SCOV[s.id]}); });
-
-var UNITS = {};
-ITEMS.forEach(function(a){ UNITS[a.id] = {kind:"article", a:a, topic:a.topic, title:a.title, subtitle:a.subtitle, body:a.body, cover:a.cover}; });
-SERIES.forEach(function(s){ s.chapters.forEach(function(c,i){ UNITS[c.id] = {kind:"chapter", s:s, i:i, topic:s.topic, title:c.title, subtitle:s.title, body:c.body, cover:s.cover}; }); });
+var IDX = {topics:[], stories:[]}, BY = {}, CACHE = {};
 
 /* אחסון */
 var S = {fs:20, pos:{}, done:{}, last:null, start:{}};
@@ -172,77 +156,102 @@ document.documentElement.style.setProperty("--fs", S.fs+"px");
 
 /* עזרים */
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
-function mins(t){ return t ? Math.max(1, Math.round(t.split(/\s+/).length/WPM)) : 0; }
-function hebDate(d){ try{ return d.toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"}); }catch(e){ return ""; } }
 function inline(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
+function hebDate(d){ try{ return d.toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"}); }catch(e){ return ""; } }
+function U(id,i){ return id+":"+i; }
+function short(t){ return String(t).split(":")[0]; }
 var ORD = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שביעי","שמיני","תשיעי","עשירי"];
 function parse(body){
-  var out=[], parts=[], blocks=body.trim().split(/\n\s*\n/);
-  blocks.forEach(function(b){
-    b=b.trim();
-    var m;
+  var out=[], parts=[];
+  body.trim().split(/\n\s*\n/).forEach(function(b){
+    b=b.trim(); var m;
     if(b.indexOf("# ")===0){
-      var t=b.slice(2), mm=t.match(/^חלק\s+\S+:\s*(.*)$/), name=mm?mm[1]:t, label = mm ? "חלק "+ORD[parts.length] : "";
+      var t=b.slice(2), mm=t.match(/^חלק\s+\S+:\s*(.*)$/), name=mm?mm[1]:t, label=mm?"חלק "+ORD[parts.length]:"";
       var id="p"+parts.length; parts.push({id:id,name:name});
-      out.push('<div class="part" id="'+id+'">'+(label?'<div class="pn">'+esc(label.toUpperCase())+'</div>':'')+'<div class="ph">'+esc(name)+'</div></div>');
-    } else if(b.indexOf("## ")===0) out.push("<h2>"+inline(b.slice(3))+"</h2>");
+      out.push('<div class="part" id="'+id+'">'+(label?'<div class="pn">'+esc(label)+'</div>':'')+'<div class="ph">'+esc(name)+'</div></div>');
+    } else if(b.indexOf("## ")===0){ var hid="h"+out.length; parts.push({id:hid,name:b.slice(3),sub:true}); out.push('<h2 id="'+hid+'">'+inline(b.slice(3))+'</h2>'); }
     else if((m=b.match(/^\[img:([^|\]]+)\|?([^\]]*)\]$/))) out.push('<figure><img loading="lazy" src="'+esc(m[1])+'" alt=""><figcaption>'+esc(m[2])+'</figcaption></figure>');
     else if(b.indexOf("> ")===0) out.push("<blockquote>"+inline(b.replace(/^>\s?/gm,""))+"</blockquote>");
     else out.push("<p>"+inline(b)+"</p>");
   });
   return {html:out.join(""), parts:parts};
 }
-function unlockAt(s,i){ if(i===0) return 0; var st=S.start[s.id]; return st ? st+i*WEEK : null; }
-function isOpen(s,i){ if(!s.chapters[i].body) return false; var t=unlockAt(s,i); return t!==null && Date.now()>=t; }
-function prog(id){ return S.done[id] ? 1 : (S.pos[id]||0); }
+function unlockAt(s,i){ if(!s.weekly||i===0) return 0; var st=S.start[s.id]; return st ? st+i*WEEK : null; }
+function isOpen(s,i){ if(!s.chapters[i]||!s.chapters[i].ready) return false; var t=unlockAt(s,i); return t!==null && Date.now()>=t; }
+function chProg(s,i){ var k=U(s.id,i); return S.done[k]?1:(S.pos[k]||0); }
+function stProg(s){ var n=s.chapters.filter(function(c){return c.ready;}).length||1, t=0; s.chapters.forEach(function(c,i){ if(c.ready) t+=chProg(s,i); }); return t/n; }
+function stDone(s){ return s.chapters.every(function(c,i){ return !c.ready || S.done[U(s.id,i)]; }); }
+function nextCh(s){ for(var i=0;i<s.chapters.length;i++){ if(isOpen(s,i) && !S.done[U(s.id,i)]) return i; } return 0; }
+function badge(s){ var n=s.chapters.length; return s.weekly?'<span class="badge">סדרה</span>':(n>1?'<span class="badge">'+n+' פרקים</span>':''); }
+function minsLabel(s){ return s.min>=50 ? "כשעה" : s.min+" דק'"; }
+
+/* טעינה */
+function load(){
+  return fetch("data/index.json",{cache:"no-cache"}).then(function(r){return r.json();}).then(function(d){
+    IDX=d; BY={}; d.stories.forEach(function(s){ BY[s.id]=s; });
+  });
+}
+function getStory(id){
+  if(CACHE[id]) return Promise.resolve(CACHE[id]);
+  return fetch("data/stories/"+id+".json").then(function(r){return r.json();}).then(function(j){ CACHE[id]=j; return j; });
+}
+/* מוריד הכול לטלפון ברקע, כדי שיעבוד אופליין */
+function prefetchAll(){
+  if(!navigator.onLine) return;
+  var urls=[]; IDX.stories.forEach(function(s){ urls.push("data/stories/"+s.id+".json"); (s.assets||[]).forEach(function(a){ urls.push(a); }); });
+  var i=0; (function next(){ if(i>=urls.length) return; var u=urls[i++]; fetch(u).catch(function(){}).then(function(){ setTimeout(next,40); }); })();
+}
 
 /* ---------- בית ---------- */
-var tab = "הכול";
-function cardHTML(a){
-  var b = a.full ? '<span class="badge">סיפור מלא</span>' : '';
-  return '<button class="card" data-info="'+a.id+'"><div class="pic"><img loading="lazy" src="'+esc(a.cover)+'" alt="">'+b+'<div class="g"></div><div class="t">'+esc(a.title.split(":")[0])+'</div></div><div class="mini">'+esc(a.topic)+' · '+mins(a.body)+' דק\'</div></button>';
-}
-function seriesCard(s){
-  return '<button class="card" data-sinfo="'+s.id+'"><div class="pic"><img loading="lazy" src="'+esc(s.cover)+'" alt=""><span class="badge">סדרה</span><div class="g"></div><div class="t">'+esc(s.title)+'</div></div><div class="mini">'+s.chapters.length+' פרקים</div></button>';
+var tab="הכול";
+function card(s){
+  return '<button class="card" data-info="'+s.id+'"><div class="pic"><img loading="lazy" src="'+esc(s.cover)+'" alt="">'+badge(s)+'<div class="g"></div><div class="t">'+esc(short(s.title))+'</div></div><div class="mini">'+esc(s.topic)+' · '+minsLabel(s)+'</div></button>';
 }
 function pickHero(){
-  var day = Math.floor(Date.now()/864e5);
-  var pool = ITEMS.filter(function(a){return a.full && !S.done[a.id];});
-  if(!pool.length) pool = ITEMS.filter(function(a){return !S.done[a.id];});
-  if(!pool.length) pool = ITEMS;
-  return pool[day % pool.length];
+  var day=Math.floor(Date.now()/864e5), pool=IDX.stories.filter(function(s){return !stDone(s) && s.min>=10;});
+  if(!pool.length) pool=IDX.stories.filter(function(s){return !stDone(s);}); if(!pool.length) pool=IDX.stories;
+  return pool[day%pool.length];
 }
 function viewHome(){
-  var h = '<div class="nav"><div class="logo">בוקר</div><span class="sp"></span>';
-  ["הכול","סיפורים","סדרות"].forEach(function(t){ h += '<button class="tab'+(t===tab?' on':'')+'" data-tab="'+t+'">'+t+'</button>'; });
-  h += '</div>';
-
-  var hero = pickHero();
-  if(tab!=="סדרות" && hero){
-    h += '<div class="hero"><img src="'+esc(hero.cover)+'" alt=""><div class="shade"></div><div class="in"><div class="kicker">'+(hero.full?'<span class="badge">סיפור מלא</span>':'')+'<span>'+esc(hero.topic)+'</span><span class="dot"></span><span>'+mins(hero.body)+' דקות</span></div><h1>'+esc(hero.title)+'</h1><p>'+esc(hero.subtitle)+'</p><button class="btn play" data-go="read/'+hero.id+'"><span class="tri"></span>'+(S.pos[hero.id]&&!S.done[hero.id]?'המשך לקרוא':'קרא')+'</button><button class="btn more" data-info="'+hero.id+'">מידע נוסף</button></div></div>';
+  var h='<div class="nav"><div class="logo">בוקר</div><span class="sp"></span>';
+  ["הכול","נושאים","סדרות"].forEach(function(t){ h+='<button class="tab'+(t===tab?' on':'')+'" data-tab="'+t+'">'+t+'</button>'; });
+  h+='</div>';
+  var hero=pickHero();
+  if(hero && tab!=="סדרות"){
+    var ni=nextCh(hero), started=chProg(hero,ni)>0.02 || ni>0;
+    h+='<div class="hero"><img src="'+esc(hero.cover)+'" alt=""><div class="shade"></div><div class="in"><div class="kicker">'+badge(hero)+'<span>'+esc(hero.topic)+'</span><span class="dot"></span><span>'+minsLabel(hero)+'</span></div><h1>'+esc(hero.title)+'</h1><p>'+esc(hero.subtitle)+'</p><button class="btn play" data-go="read/'+hero.id+'/'+ni+'"><span class="tri"></span>'+(started?'המשך: פרק '+(ni+1):'קרא')+'</button><button class="btn more" data-info="'+hero.id+'">מידע נוסף</button></div></div>';
   }
-
-  // המשך קריאה
-  var cont = Object.keys(UNITS).filter(function(id){ return S.pos[id]>0.02 && !S.done[id] && UNITS[id].body; })
-    .sort(function(a,b){ return (a===S.last?-1:0)-(b===S.last?-1:0); });
-  if(cont.length && tab==="הכול"){
-    h += '<div class="row"><h3>המשך הקריאה של '+NAME+'</h3><div class="scrolly">';
-    cont.forEach(function(id){ var u=UNITS[id]; h += '<button class="wide" data-go="read/'+id+'"><div class="pic"><img loading="lazy" src="'+esc(u.cover)+'" alt=""><div class="g"></div><div class="t">'+esc(u.title)+'</div></div><div class="pbar"><i style="width:'+Math.round(prog(id)*100)+'%"></i></div></button>'; });
-    h += '</div></div>';
+  if(tab==="הכול"){
+    var cont=[];
+    IDX.stories.forEach(function(s){ var p=stProg(s); if(p>0.01 && !stDone(s)) cont.push(s); });
+    cont.sort(function(a,b){ return (S.last&&S.last.indexOf(b.id+":")===0?1:0)-(S.last&&S.last.indexOf(a.id+":")===0?1:0); });
+    if(cont.length){
+      h+='<div class="row"><h3>המשך הקריאה של '+NAME+'</h3><div class="scrolly">';
+      cont.forEach(function(s){ var i=nextCh(s); h+='<button class="wide" data-go="read/'+s.id+'/'+i+'"><div class="pic"><img loading="lazy" src="'+esc(s.cover)+'" alt=""><div class="g"></div><div class="t">'+esc(short(s.title))+(s.chapters.length>1?' · פרק '+(i+1):'')+'</div></div><div class="pbar"><i style="width:'+Math.round(stProg(s)*100)+'%"></i></div></button>'; });
+      h+='</div></div>';
+    }
+    var fresh=IDX.stories.filter(function(s){return !stDone(s);}).slice(0,12);
+    if(fresh.length) h+='<div class="row"><h3>חדש בספרייה</h3><div class="scrolly">'+fresh.map(card).join("")+'</div></div>';
+    var hour=IDX.stories.filter(function(s){return s.chapters.length>=3 && !s.weekly;});
+    if(hour.length) h+='<div class="row"><h3>סיפורים של שעה, פרק לכל בוקר</h3><div class="scrolly">'+hour.map(card).join("")+'</div></div>';
   }
   if(tab!=="סדרות"){
-    var full = ITEMS.filter(function(a){return a.full;}), short = ITEMS.filter(function(a){return !a.full;});
-    if(full.length){ h += '<div class="row"><h3>סיפורים מלאים לבוקר ארוך</h3><div class="scrolly">'+full.map(cardHTML).join("")+'</div></div>'; }
-    if(short.length){ h += '<div class="row"><h3>קריאות קצרות</h3><div class="scrolly">'+short.map(cardHTML).join("")+'</div></div>'; }
+    IDX.topics.forEach(function(t){
+      var list=IDX.stories.filter(function(s){return s.topic===t && !s.weekly;});
+      if(list.length) h+='<div class="row"><h3>'+esc(t)+'</h3><div class="scrolly">'+list.map(card).join("")+'</div></div>';
+    });
   }
-  if(tab!=="סיפורים" && SERIES.length){ h += '<div class="row"><h3>סדרות: פרק חדש כל שבוע</h3><div class="scrolly">'+SERIES.map(seriesCard).join("")+'</div></div>'; }
+  if(tab!=="נושאים"){
+    var ser=IDX.stories.filter(function(s){return s.weekly;});
+    if(ser.length) h+='<div class="row"><h3>סדרות: פרק חדש כל שבוע</h3><div class="scrolly">'+ser.map(card).join("")+'</div></div>';
+  }
   if(tab==="הכול"){
-    var topics=[]; ITEMS.forEach(function(a){ if(topics.indexOf(a.topic)<0) topics.push(a.topic); });
-    var done = ITEMS.filter(function(a){return S.done[a.id];});
-    if(done.length){ h += '<div class="row"><h3>קראת לאחרונה</h3><div class="scrolly">'+done.map(cardHTML).join("")+'</div></div>'; }
+    var done=IDX.stories.filter(stDone).filter(function(s){return stProg(s)>0;});
+    if(done.length) h+='<div class="row"><h3>קראת</h3><div class="scrolly">'+done.map(card).join("")+'</div></div>';
   }
-  h += '<div class="foot">הכול שמור בטלפון ועובד בלי אינטרנט.<br>תקרא, תניח, תקום.</div>';
-  app.innerHTML = h; window.scrollTo(0,0);
+  var total=IDX.stories.reduce(function(a,s){return a+s.min;},0);
+  h+='<div class="foot">'+IDX.stories.length+' סיפורים · כ־'+Math.round(total/60)+' שעות קריאה<br>הכול שמור בטלפון ועובד בלי אינטרנט.<br>תקרא, תניח, תקום.</div>';
+  app.innerHTML=h; window.scrollTo(0,0);
 }
 
 /* ---------- מידע נוסף ---------- */
@@ -251,21 +260,20 @@ function openSheet(html){ sheet.innerHTML=html; sheet.scrollTop=0; sbg.style.dis
 function closeSheet(){ sheet.classList.remove("open"); sbg.classList.remove("open"); setTimeout(function(){ sbg.style.display="none"; },250); }
 sbg.addEventListener("click", closeSheet);
 function gets(list){ return list&&list.length ? '<ul class="gets">'+list.map(function(t){return '<li>'+esc(t)+'</li>';}).join("")+'</ul>' : ''; }
-function infoArticle(id){
-  var a = byId[id]; if(!a) return;
-  var p = prog(id), label = S.done[id] ? 'קרא שוב' : (p>0.02 ? 'המשך לקרוא' : 'קרא');
-  openSheet('<div class="top"><img src="'+esc(a.cover)+'" alt=""><div class="g"></div><button class="x" data-close>✕</button></div><div class="body"><h2>'+esc(a.title)+'</h2><div class="meta">'+(a.full?'<span class="badge">סיפור מלא</span>':'')+'<span>'+esc(a.topic)+'</span><span class="dot"></span><span>'+mins(a.body)+' דקות קריאה</span></div><button class="btn play" data-go="read/'+id+'"><span class="tri"></span>'+label+'</button>'+(a.why?'<div class="why">'+esc(a.why)+'</div>':'<div class="why">'+esc(a.subtitle)+'</div>')+(a.takeaways?'<div class="lbl">מה תיקח מזה</div>'+gets(a.takeaways):'')+'</div>');
-}
-function infoSeries(id){
-  var s = SERIES.filter(function(x){return x.id===id;})[0]; if(!s) return;
-  var eps = s.chapters.map(function(c,i){
-    var open=isOpen(s,i), sub;
-    if(!c.body) sub="בחבילת התוכן הבאה";
-    else if(open) sub = S.done[c.id] ? "נקרא" : mins(c.body)+" דקות"+(S.pos[c.id]?" · בתהליך":"");
-    else { var t=unlockAt(s,i); sub = t===null ? "נפתח שבוע אחרי הפרק הקודם" : "נפתח ב"+hebDate(new Date(t)); }
-    return '<button class="ep'+(open?'':' locked')+'" '+(open?'data-go="read/'+c.id+'"':'')+'><div class="n">'+(i+1)+'</div><div><div class="et">'+esc(c.title.replace(/^פרק \d+:\s*/,""))+'</div><div class="es">'+esc(sub)+'</div></div></button>';
-  }).join("");
-  openSheet('<div class="top"><img src="'+esc(s.cover)+'" alt=""><div class="g"></div><button class="x" data-close>✕</button></div><div class="body"><h2>'+esc(s.title)+'</h2><div class="meta"><span class="badge">סדרה</span><span>'+esc(s.topic)+'</span><span class="dot"></span><span>'+s.chapters.length+' פרקים</span></div><div class="why">'+esc(s.subtitle)+'</div><div class="lbl">פרקים</div><div class="eps">'+eps+'</div></div>');
+function info(id){
+  var s=BY[id]; if(!s) return;
+  var ni=nextCh(s), started=stProg(s)>0.01, label=stDone(s)?'קרא שוב':(started?'המשך: פרק '+(ni+1):'קרא'+(s.chapters.length>1?' פרק 1':''));
+  var eps='';
+  if(s.chapters.length>1){
+    eps='<div class="lbl">פרקים</div><div class="eps">'+s.chapters.map(function(c,i){
+      var open=isOpen(s,i), sub;
+      if(!c.ready) sub="בקרוב";
+      else if(open) sub = S.done[U(s.id,i)] ? "נקרא" : c.min+" דקות"+(S.pos[U(s.id,i)]?" · בתהליך":"");
+      else { var t=unlockAt(s,i); sub = t===null ? "נפתח שבוע אחרי הפרק הקודם" : "נפתח ב"+hebDate(new Date(t)); }
+      return '<button class="ep'+(open?'':' locked')+'" '+(open?'data-go="read/'+s.id+'/'+i+'"':'')+'><div class="n">'+(i+1)+'</div><div><div class="et">'+esc(c.title.replace(/^פרק \d+:\s*/,""))+'</div><div class="es">'+esc(sub)+'</div></div></button>';
+    }).join("")+'</div>';
+  }
+  openSheet('<div class="top"><img src="'+esc(s.cover)+'" alt=""><div class="g"></div><button class="x" data-close>✕</button></div><div class="body"><h2>'+esc(s.title)+'</h2><div class="meta">'+badge(s)+'<span>'+esc(s.topic)+'</span><span class="dot"></span><span>'+minsLabel(s)+'</span></div><button class="btn play" data-go="read/'+s.id+'/'+(stDone(s)?0:ni)+'"><span class="tri"></span>'+label+'</button><div class="why">'+esc(s.why||s.subtitle)+'</div>'+(s.takeaways?'<div class="lbl">מה תיקח מזה</div>'+gets(s.takeaways):'')+eps+'</div>');
 }
 
 /* ---------- קורא ---------- */
@@ -280,33 +288,44 @@ window.addEventListener("scroll", function(){
   saveT=setTimeout(function(){ if(!current) return; S.pos[current]=r; if(r>0.97) S.done[current]=true; S.last=current; save(); },400);
 },{passive:true});
 
-function nextFor(u){
-  if(u.kind==="chapter"){ var n=u.s.chapters[u.i+1]; if(n && isOpen(u.s,u.i+1)) return UNITS[n.id] && {id:n.id,u:UNITS[n.id]}; }
-  var c = ITEMS.filter(function(a){ return !S.done[a.id] && a.id!==current; });
-  c.sort(function(a,b){ return (b.full?1:0)-(a.full?1:0); });
-  return c[0] ? {id:c[0].id, u:UNITS[c[0].id]} : null;
+function suggestNext(exceptId){
+  var c=IDX.stories.filter(function(s){ return s.id!==exceptId && !stDone(s) && !s.weekly; });
+  c.sort(function(a,b){ return stProg(b)-stProg(a) || b.min-a.min; });
+  return c[0];
 }
-function viewRead(id){
+function viewRead(id, i){
   closeSheet();
-  var u=UNITS[id]; if(!u||!u.body) return go("");
-  if(u.kind==="chapter"){ if(!isOpen(u.s,u.i)) return go(""); if(u.i===0&&!S.start[u.s.id]){ S.start[u.s.id]=Date.now(); save(); } }
-  current=id; S.last=id; save();
-  var a = u.kind==="article" ? u.a : null;
-  var P = parse(u.body);
-  var h = '<div class="prog" id="prog"></div><div class="rtop" id="rtop"><button class="ic" data-go="">→ חזרה</button><span class="ttl">'+esc(u.title)+'</span><span class="sp"></span><button class="ic" data-fs="-1" aria-label="הקטן">א-</button><button class="ic" data-fs="1" aria-label="הגדל">א+</button></div>';
-  h += '<div class="rhero"><img src="'+esc(u.cover)+'" alt=""><div class="g"></div><div class="in"><div class="kicker">'+(a&&a.full?'<span class="badge">סיפור מלא</span>':'')+'<span>'+esc(u.kind==="chapter"?u.s.title:u.topic)+'</span><span class="dot"></span><span>'+mins(u.body)+' דקות</span></div><h1>'+esc(u.title)+'</h1>'+(a?'<p>'+esc(a.subtitle)+'</p>':'')+'</div></div>';
-  h += '<div class="reader">';
-  if(a && a.why){ h += '<div class="whybox"><div class="k">למה לקרוא את זה</div><div class="w">'+esc(a.why)+'</div>'+(a.takeaways?'<div class="lbl" style="margin-top:12px">מה תיקח מזה</div>'+gets(a.takeaways):'')+'</div>'; }
-  if(P.parts.length>2){ h += '<div class="toc">'+P.parts.map(function(p){return '<button data-jump="'+p.id+'">'+esc(p.name)+'</button>';}).join("")+'</div>'; }
-  h += '<div class="prose">'+P.html+'</div>';
-  var nx = nextFor(u), endSmall = 'זה רגע טוב לקום, לשתות מים ולפתוח את היום.';
-  if(u.kind==="chapter"){ var n2=u.s.chapters[u.i+1]; if(n2 && n2.body && !isOpen(u.s,u.i+1)) endSmall += '<br>הפרק הבא נפתח ב'+esc(hebDate(new Date(unlockAt(u.s,u.i+1))))+'.'; }
-  h += '<div class="endc"><div class="big">סוף.</div><div class="small">'+endSmall+'</div></div>';
-  if(nx){ h += '<button class="next" data-go="read/'+nx.id+'"><div class="lbl">הבא בתור, למחר בבוקר</div><div class="wide"><div class="pic"><img loading="lazy" src="'+esc(nx.u.cover)+'" alt=""><div class="g"></div><div class="t">'+esc(nx.u.title)+'</div></div><div class="mini">'+esc(nx.u.topic)+' · '+mins(nx.u.body)+' דקות</div></div></button>'; }
-  h += '</div>';
-  app.innerHTML=h;
-  var saved=S.pos[id]||0;
-  requestAnimationFrame(function(){ var max=document.documentElement.scrollHeight-window.innerHeight; window.scrollTo(0,(saved>0.97?0:saved)*max); });
+  var s=BY[id]; i=+i||0;
+  if(!s || !s.chapters[i]) return go("");
+  if(!isOpen(s,i)) return go("");
+  if(s.weekly && i===0 && !S.start[s.id]){ S.start[s.id]=Date.now(); save(); }
+  app.innerHTML='<div class="foot" style="padding-top:40vh">טוען…</div>';
+  getStory(id).then(function(full){
+    var ch=full.chapters[i]; current=U(id,i); S.last=current; save();
+    var P=parse(ch.body), multi=s.chapters.length>1;
+    var chTitle = multi ? ch.title.replace(/^פרק \d+:\s*/,"") : s.title;
+    var h='<div class="prog" id="prog"></div><div class="rtop" id="rtop"><button class="ic" data-go="">→ חזרה</button><span class="ttl">'+esc(short(s.title))+(multi?' · פרק '+(i+1):'')+'</span><span class="sp"></span><button class="ic" data-fs="-1" aria-label="הקטן">א-</button><button class="ic" data-fs="1" aria-label="הגדל">א+</button></div>';
+    h+='<div class="rhero"><img src="'+esc(s.cover)+'" alt=""><div class="g"></div><div class="in"><div class="kicker">'+(multi?'<span class="badge">פרק '+(i+1)+' מתוך '+s.chapters.length+'</span>':'')+'<span>'+esc(multi?short(s.title):s.topic)+'</span><span class="dot"></span><span>'+s.chapters[i].min+' דקות</span></div><h1>'+esc(chTitle)+'</h1>'+(i===0?'<p>'+esc(s.subtitle)+'</p>':'')+'</div></div>';
+    h+='<div class="reader">';
+    if(i===0 && s.why){ h+='<div class="whybox"><div class="k">למה לקרוא את זה</div><div class="w">'+esc(s.why)+'</div>'+(s.takeaways?'<div class="lbl" style="margin-top:12px">מה תיקח מזה</div>'+gets(s.takeaways):'')+(multi?'<div class="lbl" style="margin-top:12px">'+s.chapters.length+' פרקים, כ־'+s.chapters[0].min+' דקות כל אחד. פרק לכל בוקר.</div>':'')+'</div>'; }
+    var big=P.parts.filter(function(p){return !p.sub;}), jumps = big.length>2 ? big : P.parts.filter(function(p){return p.sub;});
+    if(jumps.length>2) h+='<div class="toc">'+jumps.map(function(p){return '<button data-jump="'+p.id+'">'+esc(p.name)+'</button>';}).join("")+'</div>';
+    h+='<div class="prose">'+P.html+'</div>';
+    var nextOpen = s.chapters[i+1] && isOpen(s,i+1), nextLocked = s.chapters[i+1] && s.chapters[i+1].ready && !nextOpen;
+    var endBig = (multi && s.chapters[i+1]) ? 'סוף פרק '+(i+1)+'.' : 'סוף.';
+    var endSmall = 'זה רגע טוב לקום, לשתות מים ולפתוח את היום.';
+    if(nextOpen) endSmall += '<br>הפרק הבא מחכה לך מחר בבוקר.';
+    if(nextLocked && unlockAt(s,i+1)) endSmall += '<br>הפרק הבא נפתח ב'+esc(hebDate(new Date(unlockAt(s,i+1))))+'.';
+    h+='<div class="endc"><div class="big">'+endBig+'</div><div class="small">'+endSmall+'</div></div>';
+    var nxCover, nxTitle, nxGo, nxMini, nxLbl;
+    if(nextOpen){ nxCover=s.cover; nxTitle='פרק '+(i+2)+': '+s.chapters[i+1].title.replace(/^פרק \d+:\s*/,""); nxGo=s.id+'/'+(i+1); nxMini=s.chapters[i+1].min+' דקות'; nxLbl='הפרק הבא, למחר בבוקר'; }
+    else { var n=suggestNext(s.id); if(n){ var ni=nextCh(n); nxCover=n.cover; nxTitle=n.title; nxGo=n.id+'/'+ni; nxMini=n.topic+' · '+minsLabel(n); nxLbl='הבא בתור, למחר בבוקר'; } }
+    if(nxGo) h+='<button class="next" data-go="read/'+nxGo+'"><div class="lbl">'+nxLbl+'</div><div class="wide"><div class="pic"><img loading="lazy" src="'+esc(nxCover)+'" alt=""><div class="g"></div><div class="t">'+esc(nxTitle)+'</div></div><div class="mini">'+esc(nxMini)+'</div></div></button>';
+    h+='</div>';
+    app.innerHTML=h;
+    var saved=S.pos[current]||0;
+    requestAnimationFrame(function(){ var max=document.documentElement.scrollHeight-window.innerHeight; window.scrollTo(0,(saved>0.97?0:saved)*max); });
+  }).catch(function(){ app.innerHTML='<div class="foot" style="padding-top:35vh">הסיפור הזה עוד לא נשמר בטלפון.<br>תפתח את האפליקציה פעם אחת עם אינטרנט.<br><br><button class="btn more" style="max-width:200px;margin:0 auto" data-go="">חזרה</button></div>'; });
 }
 function setFont(d){
   var r=ratio(); S.fs=Math.max(16,Math.min(30,S.fs+d*2));
@@ -320,22 +339,22 @@ function route(){
   if(current){ S.pos[current]=ratio(); if(S.pos[current]>0.97) S.done[current]=true; save(); }
   current=null;
   var p=(location.hash||"").replace(/^#\/?/,"").split("/");
-  if(p[0]==="read"&&p[1]) viewRead(p[1]); else { closeSheet(); viewHome(); }
+  if(p[0]==="read"&&p[1]) viewRead(p[1],p[2]); else { closeSheet(); viewHome(); }
 }
 document.addEventListener("click", function(e){
-  var t=e.target.closest("[data-go],[data-tab],[data-fs],[data-info],[data-sinfo],[data-close],[data-jump]"); if(!t) return;
+  var t=e.target.closest("[data-go],[data-tab],[data-fs],[data-info],[data-close],[data-jump]"); if(!t) return;
   if(t.hasAttribute("data-close")) return closeSheet();
   if(t.hasAttribute("data-fs")) return setFont(+t.getAttribute("data-fs"));
   if(t.hasAttribute("data-tab")){ tab=t.getAttribute("data-tab"); return viewHome(); }
-  if(t.hasAttribute("data-info")) return infoArticle(t.getAttribute("data-info"));
-  if(t.hasAttribute("data-sinfo")) return infoSeries(t.getAttribute("data-sinfo"));
+  if(t.hasAttribute("data-info")) return info(t.getAttribute("data-info"));
   if(t.hasAttribute("data-jump")){ var el=document.getElementById(t.getAttribute("data-jump")); if(el) window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-70,behavior:"smooth"}); return; }
-  var g=t.getAttribute("data-go"); if(("#/"+g)===location.hash){ route(); } else go(g);
+  var g=t.getAttribute("data-go"); if(("#/"+g)===location.hash) route(); else go(g);
 });
 window.addEventListener("hashchange", route);
 document.addEventListener("visibilitychange", function(){ if(document.hidden&&current){ S.pos[current]=ratio(); save(); } });
-route();
 
+load().then(function(){ route(); setTimeout(prefetchAll, 1500); })
+  .catch(function(){ app.innerHTML='<div class="foot" style="padding-top:35vh">לא הצלחתי לטעון את הספרייה.<br>תפתח את האפליקציה פעם אחת עם אינטרנט.</div>'; });
 if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
 })();
 </script>
