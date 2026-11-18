@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="בוקר">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>בוקר</title>
+<style>
+@font-face{font-family:Heebo;font-weight:400;font-display:swap;src:url(fonts/heebo-he-400.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:500;font-display:swap;src:url(fonts/heebo-he-500.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:700;font-display:swap;src:url(fonts/heebo-he-700.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:900;font-display:swap;src:url(fonts/heebo-he-900.woff2) format("woff2");unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:400;font-display:swap;src:url(fonts/heebo-la-400.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF}
+@font-face{font-family:Heebo;font-weight:500;font-display:swap;src:url(fonts/heebo-la-500.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF}
+@font-face{font-family:Heebo;font-weight:700;font-display:swap;src:url(fonts/heebo-la-700.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF}
+@font-face{font-family:Heebo;font-weight:900;font-display:swap;src:url(fonts/heebo-la-900.woff2) format("woff2");unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF}
+
+/* פלטה: שחור עמוק, טקסט לבן־חם, אדום אחד. תחת מסנן אדום הכול נשאר קריא כי ההיררכיה בנויה מבהירות ומשקל, לא מצבע. */
+:root{--bg:#000;--panel:#141414;--panel2:#1f1f1f;--text:#f5f2ee;--soft:#bdb5ab;--faint:#8e867c;--red:#e50914;--fs:20px;--img:brightness(.82) saturate(.9)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font-family:Heebo,-apple-system,"Arial Hebrew",Arial,sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;min-height:100vh;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+img{display:block}
+.pad{padding-left:16px;padding-right:16px}
+.scrolly{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 16px 4px;scrollbar-width:none}
+.scrolly::-webkit-scrollbar{display:none}
+
+/* כותרת עליונה */
+.nav{position:sticky;top:0;z-index:20;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;display:flex;align-items:center;gap:14px;background:linear-gradient(#000 60%,rgba(0,0,0,0))}
+.logo{font-weight:900;font-size:27px;color:var(--red);letter-spacing:-.5px}
+.nav .sp{flex:1}
+.nav .tab{font-size:15px;color:var(--soft);font-weight:500}
+.nav .tab.on{color:var(--text);font-weight:700}
+
+/* הירו */
+.hero{margin:6px 16px 0;position:relative;border-radius:14px;overflow:hidden;aspect-ratio:4/5;background:var(--panel);box-shadow:0 0 0 1px rgba(255,255,255,.06)}
+.hero img{width:100%;height:100%;object-fit:cover;filter:var(--img)}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(to top,#000 0%,rgba(0,0,0,.85) 32%,rgba(0,0,0,0) 62%)}
+.hero .in{position:absolute;inset:auto 0 0 0;padding:18px 18px 18px}
+.hero .kicker{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--soft);font-weight:500}
+.badge{background:var(--red);color:#fff;font-weight:900;font-size:11px;padding:3px 6px;border-radius:3px;letter-spacing:.3px}
+.dot{width:3px;height:3px;border-radius:50%;background:var(--faint)}
+.hero h1{font-size:34px;line-height:1.1;font-weight:900;margin:10px 0 8px;letter-spacing:-.5px}
+.hero p{margin:0 0 16px;font-size:15px;line-height:1.55;color:#e6e0d8}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:46px;border-radius:24px;font-weight:700;font-size:17px}
+.btn.play{background:#fff;color:#000}
+.btn.more{background:rgba(110,110,110,.45);color:#fff;margin-top:10px}
+.tri{width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:13px solid currentColor}
+
+/* שורות */
+.row{margin-top:26px}
+.row h3{font-size:18px;font-weight:700;margin:0 0 10px;padding:0 16px}
+.card{flex:none;width:31vw;max-width:150px;scroll-snap-align:start;text-align:right}
+.card .pic{position:relative;aspect-ratio:2/3;border-radius:6px;overflow:hidden;background:var(--panel)}
+.card .pic img{width:100%;height:100%;object-fit:cover;filter:var(--img)}
+.card .pic .g{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,0) 55%)}
+.card .pic .t{position:absolute;inset:auto 7px 8px 7px;font-weight:900;font-size:14px;line-height:1.2}
+.card .pic .badge{position:absolute;top:6px;right:6px}
+.card .mini{font-size:12px;color:var(--faint);margin-top:6px}
+.wide{flex:none;width:64vw;max-width:300px;scroll-snap-align:start;text-align:right}
+.wide .pic{position:relative;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:var(--panel)}
+.wide .pic img{width:100%;height:100%;object-fit:cover;filter:var(--img)}
+.wide .pic .g{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,0) 60%)}
+.wide .pic .t{position:absolute;inset:auto 10px 10px 10px;font-weight:900;font-size:16px;line-height:1.25}
+.pbar{height:3px;background:#4a4a4a;margin-top:6px;border-radius:2px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--red)}
+.wide .mini{font-size:12px;color:var(--faint);margin-top:6px}
+.foot{color:var(--faint);font-size:13px;text-align:center;padding:40px 16px calc(50px + env(safe-area-inset-bottom));line-height:1.7}
+
+/* מידע נוסף */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:40;opacity:0;transition:opacity .2s}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--panel);border-radius:16px 16px 0 0;max-height:88vh;overflow:auto;transform:translateY(100%);transition:transform .28s ease;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.sheet.open{transform:none}.sheet-bg.open{opacity:1}
+.sheet .top{position:relative;aspect-ratio:16/10;overflow:hidden}
+.sheet .top img{width:100%;height:100%;object-fit:cover;object-position:center 35%;filter:var(--img)}
+.sheet .top .g{position:absolute;inset:0;background:linear-gradient(to top,var(--panel),rgba(20,20,20,0) 60%)}
+.sheet .x{position:absolute;top:10px;left:10px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.6);font-size:18px;line-height:34px;text-align:center}
+.sheet .body{padding:0 18px}
+.sheet h2{font-size:26px;font-weight:900;margin:0 0 8px;line-height:1.15}
+.sheet .meta{font-size:13px;color:var(--soft);display:flex;gap:8px;align-items:center;margin-bottom:14px}
+.sheet .why{font-size:16px;line-height:1.65;color:#e9e3db;margin:14px 0}
+.gets{margin:0;padding:0;list-style:none}
+.gets li{position:relative;padding:9px 22px 9px 0;font-size:15px;line-height:1.45;border-top:1px solid #2a2a2a;color:var(--text)}
+.gets li:before{content:"";position:absolute;right:4px;top:16px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.lbl{font-size:13px;font-weight:700;color:var(--faint);margin:18px 0 6px;letter-spacing:.3px}
+.eps .ep{display:flex;gap:12px;align-items:center;width:100%;text-align:right;padding:12px 0;border-top:1px solid #2a2a2a}
+.eps .n{font-size:22px;font-weight:900;color:var(--faint);width:26px;text-align:center}
+.eps .et{font-size:15px;font-weight:700;line-height:1.35}
+.eps .es{font-size:12px;color:var(--faint);margin-top:3px}
+.eps .ep.locked{opacity:.6}
+
+/* קורא */
+.rtop{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;transition:background .2s}
+.rtop.solid{background:rgba(0,0,0,.92)}
+.rtop .ic{height:36px;min-width:36px;padding:0 10px;border-radius:18px;background:rgba(0,0,0,.55);font-weight:700;font-size:15px;color:#fff}
+.rtop .sp{flex:1}
+.rtop .ttl{font-size:14px;font-weight:700;color:var(--soft);opacity:0;transition:opacity .2s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.rtop.solid .ttl{opacity:1}
+.prog{position:fixed;top:0;right:0;height:3px;background:var(--red);z-index:31;width:0}
+.rhero{position:relative;height:72vh;min-height:420px;overflow:hidden}
+.rhero img{width:100%;height:100%;object-fit:cover;filter:var(--img)}
+.rhero .g{position:absolute;inset:0;background:linear-gradient(to top,#000 4%,rgba(0,0,0,.7) 38%,rgba(0,0,0,.1) 75%)}
+.rhero .in{position:absolute;inset:auto 0 0 0;padding:0 20px 22px}
+.rhero .kicker{font-size:13px;color:var(--soft);font-weight:500;display:flex;gap:8px;align-items:center}
+.rhero h1{font-size:calc(var(--fs)*1.7);line-height:1.12;font-weight:900;margin:10px 0 10px;letter-spacing:-.5px}
+.rhero p{margin:0;font-size:calc(var(--fs)*.82);line-height:1.55;color:#e6e0d8}
+.reader{max-width:680px;margin:0 auto;padding:0 20px}
+.whybox{background:var(--panel);border-radius:12px;padding:18px 18px 8px;margin:10px 0 30px}
+.whybox .k{font-size:12px;font-weight:900;color:var(--red);letter-spacing:.6px}
+.whybox .w{font-size:calc(var(--fs)*.88);line-height:1.7;margin:8px 0 6px}
+.whybox .gets li{font-size:calc(var(--fs)*.78)}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 34px}
+.toc button{font-size:13px;color:var(--soft);border:1px solid #333;border-radius:16px;padding:6px 12px}
+.prose{font-size:var(--fs);line-height:1.85}
+.prose p{margin:0 0 1.05em}
+.prose strong{font-weight:900;color:#fff}
+.part{margin:2.4em 0 1.1em;padding-top:1.4em;border-top:1px solid #262626}
+.part .pn{font-size:12px;font-weight:900;color:var(--red);letter-spacing:.8px}
+.part .ph{font-size:calc(var(--fs)*1.35);font-weight:900;line-height:1.2;margin-top:6px}
+.prose h2{font-size:calc(var(--fs)*1.08);font-weight:900;margin:1.6em 0 .5em}
+.prose blockquote{margin:0 0 1.05em;padding:4px 16px 4px 0;border-right:3px solid var(--red);color:#fff;font-weight:500}
+.prose figure{margin:1.6em -20px}
+.prose figure img{width:100%;filter:var(--img)}
+.prose figcaption{font-size:13px;color:var(--faint);padding:8px 20px 0;line-height:1.5}
+.endc{text-align:center;padding:36px 0 10px;border-top:1px solid #262626;margin-top:30px}
+.endc .big{font-size:26px;font-weight:900}
+.endc .small{color:var(--soft);font-size:16px;margin-top:6px;line-height:1.6}
+.next{display:block;width:100%;text-align:right;margin:24px 0 calc(60px + env(safe-area-inset-bottom))}
+.next .lbl{margin:0 0 8px}
+.next .wide{width:100%;max-width:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="sheet-bg" id="sbg"></div>
+<div class="sheet" id="sheet"></div>
+<script src="content.js"></script>
+<script src="stories.js"></script>
+<script src="stories2.js"></script>
+<script>
+(function(){
+"use strict";
+var NAME = "ניב";
+var WPM = 120, WEEK = 7*864e5, KEY = "boker.v1";
+var app = document.getElementById("app");
+var LIB = window.LIBRARY || {items:[],series:[]};
+var FULL = window.FULL || [], META = window.META || {}, SCOV = window.SERIES_COVER || {};
+
+/* מיזוג: גרסה מלאה מחליפה את הקצרה */
+var byId = {};
+LIB.items.forEach(function(a){ var m = META[a.id]||{}; byId[a.id] = Object.assign({}, a, m, {full:false}); });
+FULL.forEach(function(a){ byId[a.id] = Object.assign({}, a, {full:true}); });
+var ITEMS = FULL.map(function(a){return byId[a.id];}).concat(LIB.items.filter(function(a){return !FULL.some(function(f){return f.id===a.id;});}).map(function(a){return byId[a.id];}));
+var SERIES = LIB.series.map(function(s){ return Object.assign({}, s, {cover:SCOV[s.id]}); });
+
+var UNITS = {};
+ITEMS.forEach(function(a){ UNITS[a.id] = {kind:"article", a:a, topic:a.topic, title:a.title, subtitle:a.subtitle, body:a.body, cover:a.cover}; });
+SERIES.forEach(function(s){ s.chapters.forEach(function(c,i){ UNITS[c.id] = {kind:"chapter", s:s, i:i, topic:s.topic, title:c.title, subtitle:s.title, body:c.body, cover:s.cover}; }); });
+
+/* אחסון */
+var S = {fs:20, pos:{}, done:{}, last:null, start:{}};
+try{ var raw = localStorage.getItem(KEY); if(raw){ var o = JSON.parse(raw); for(var k in o) S[k]=o[k]; } }catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+document.documentElement.style.setProperty("--fs", S.fs+"px");
+
+/* עזרים */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function mins(t){ return t ? Math.max(1, Math.round(t.split(/\s+/).length/WPM)) : 0; }
+function hebDate(d){ try{ return d.toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"}); }catch(e){ return ""; } }
+function inline(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
+var ORD = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שביעי","שמיני","תשיעי","עשירי"];
+function parse(body){
+  var out=[], parts=[], blocks=body.trim().split(/\n\s*\n/);
+  blocks.forEach(function(b){
+    b=b.trim();
+    var m;
+    if(b.indexOf("# ")===0){
+      var t=b.slice(2), mm=t.match(/^חלק\s+\S+:\s*(.*)$/), name=mm?mm[1]:t, label = mm ? "חלק "+ORD[parts.length] : "";
+      var id="p"+parts.length; parts.push({id:id,name:name});
+      out.push('<div class="part" id="'+id+'">'+(label?'<div class="pn">'+esc(label.toUpperCase())+'</div>':'')+'<div class="ph">'+esc(name)+'</div></div>');
+    } else if(b.indexOf("## ")===0) out.push("<h2>"+inline(b.slice(3))+"</h2>");
+    else if((m=b.match(/^\[img:([^|\]]+)\|?([^\]]*)\]$/))) out.push('<figure><img loading="lazy" src="'+esc(m[1])+'" alt=""><figcaption>'+esc(m[2])+'</figcaption></figure>');
+    else if(b.indexOf("> ")===0) out.push("<blockquote>"+inline(b.replace(/^>\s?/gm,""))+"</blockquote>");
+    else out.push("<p>"+inline(b)+"</p>");
+  });
+  return {html:out.join(""), parts:parts};
+}
+function unlockAt(s,i){ if(i===0) return 0; var st=S.start[s.id]; return st ? st+i*WEEK : null; }
+function isOpen(s,i){ if(!s.chapters[i].body) return false; var t=unlockAt(s,i); return t!==null && Date.now()>=t; }
+function prog(id){ return S.done[id] ? 1 : (S.pos[id]||0); }
+
+/* ---------- בית ---------- */
+var tab = "הכול";
+function cardHTML(a){
+  var b = a.full ? '<span class="badge">סיפור מלא</span>' : '';
+  return '<button class="card" data-info="'+a.id+'"><div class="pic"><img loading="lazy" src="'+esc(a.cover)+'" alt="">'+b+'<div class="g"></div><div class="t">'+esc(a.title.split(":")[0])+'</div></div><div class="mini">'+esc(a.topic)+' · '+mins(a.body)+' דק\'</div></button>';
+}
+function seriesCard(s){
+  return '<button class="card" data-sinfo="'+s.id+'"><div class="pic"><img loading="lazy" src="'+esc(s.cover)+'" alt=""><span class="badge">סדרה</span><div class="g"></div><div class="t">'+esc(s.title)+'</div></div><div class="mini">'+s.chapters.length+' פרקים</div></button>';
+}
+function pickHero(){
+  var day = Math.floor(Date.now()/864e5);
+  var pool = ITEMS.filter(function(a){return a.full && !S.done[a.id];});
+  if(!pool.length) pool = ITEMS.filter(function(a){return !S.done[a.id];});
+  if(!pool.length) pool = ITEMS;
+  return pool[day % pool.length];
+}
+function viewHome(){
+  var h = '<div class="nav"><div class="logo">בוקר</div><span class="sp"></span>';
+  ["הכול","סיפורים","סדרות"].forEach(function(t){ h += '<button class="tab'+(t===tab?' on':'')+'" data-tab="'+t+'">'+t+'</button>'; });
+  h += '</div>';
+
+  var hero = pickHero();
+  if(tab!=="סדרות" && hero){
+    h += '<div class="hero"><img src="'+esc(hero.cover)+'" alt=""><div class="shade"></div><div class="in"><div class="kicker">'+(hero.full?'<span class="badge">סיפור מלא</span>':'')+'<span>'+esc(hero.topic)+'</span><span class="dot"></span><span>'+mins(hero.body)+' דקות</span></div><h1>'+esc(hero.title)+'</h1><p>'+esc(hero.subtitle)+'</p><button class="btn play" data-go="read/'+hero.id+'"><span class="tri"></span>'+(S.pos[hero.id]&&!S.done[hero.id]?'המשך לקרוא':'קרא')+'</button><button class="btn more" data-info="'+hero.id+'">מידע נוסף</button></div></div>';
+  }
+
+  // המשך קריאה
+  var cont = Object.keys(UNITS).filter(function(id){ return S.pos[id]>0.02 && !S.done[id] && UNITS[id].body; })
+    .sort(function(a,b){ return (a===S.last?-1:0)-(b===S.last?-1:0); });
+  if(cont.length && tab==="הכול"){
+    h += '<div class="row"><h3>המשך הקריאה של '+NAME+'</h3><div class="scrolly">';
+    cont.forEach(function(id){ var u=UNITS[id]; h += '<button class="wide" data-go="read/'+id+'"><div class="pic"><img loading="lazy" src="'+esc(u.cover)+'" alt=""><div class="g"></div><div class="t">'+esc(u.title)+'</div></div><div class="pbar"><i style="width:'+Math.round(prog(id)*100)+'%"></i></div></button>'; });
+    h += '</div></div>';
+  }
+  if(tab!=="סדרות"){
+    var full = ITEMS.filter(function(a){return a.full;}), short = ITEMS.filter(function(a){return !a.full;});
+    if(full.length){ h += '<div class="row"><h3>סיפורים מלאים לבוקר ארוך</h3><div class="scrolly">'+full.map(cardHTML).join("")+'</div></div>'; }
+    if(short.length){ h += '<div class="row"><h3>קריאות קצרות</h3><div class="scrolly">'+short.map(cardHTML).join("")+'</div></div>'; }
+  }
+  if(tab!=="סיפורים" && SERIES.length){ h += '<div class="row"><h3>סדרות: פרק חדש כל שבוע</h3><div class="scrolly">'+SERIES.map(seriesCard).join("")+'</div></div>'; }
+  if(tab==="הכול"){
+    var topics=[]; ITEMS.forEach(function(a){ if(topics.indexOf(a.topic)<0) topics.push(a.topic); });
+    var done = ITEMS.filter(function(a){return S.done[a.id];});
+    if(done.length){ h += '<div class="row"><h3>קראת לאחרונה</h3><div class="scrolly">'+done.map(cardHTML).join("")+'</div></div>'; }
+  }
+  h += '<div class="foot">הכול שמור בטלפון ועובד בלי אינטרנט.<br>תקרא, תניח, תקום.</div>';
+  app.innerHTML = h; window.scrollTo(0,0);
+}
+
+/* ---------- מידע נוסף ---------- */
+var sheet=document.getElementById("sheet"), sbg=document.getElementById("sbg");
+function openSheet(html){ sheet.innerHTML=html; sheet.scrollTop=0; sbg.style.display="block"; requestAnimationFrame(function(){ sheet.classList.add("open"); sbg.classList.add("open"); }); }
+function closeSheet(){ sheet.classList.remove("open"); sbg.classList.remove("open"); setTimeout(function(){ sbg.style.display="none"; },250); }
+sbg.addEventListener("click", closeSheet);
+function gets(list){ return list&&list.length ? '<ul class="gets">'+list.map(function(t){return '<li>'+esc(t)+'</li>';}).join("")+'</ul>' : ''; }
+function infoArticle(id){
+  var a = byId[id]; if(!a) return;
+  var p = prog(id), label = S.done[id] ? 'קרא שוב' : (p>0.02 ? 'המשך לקרוא' : 'קרא');
+  openSheet('<div class="top"><img src="'+esc(a.cover)+'" alt=""><div class="g"></div><button class="x" data-close>✕</button></div><div class="body"><h2>'+esc(a.title)+'</h2><div class="meta">'+(a.full?'<span class="badge">סיפור מלא</span>':'')+'<span>'+esc(a.topic)+'</span><span class="dot"></span><span>'+mins(a.body)+' דקות קריאה</span></div><button class="btn play" data-go="read/'+id+'"><span class="tri"></span>'+label+'</button>'+(a.why?'<div class="why">'+esc(a.why)+'</div>':'<div class="why">'+esc(a.subtitle)+'</div>')+(a.takeaways?'<div class="lbl">מה תיקח מזה</div>'+gets(a.takeaways):'')+'</div>');
+}
+function infoSeries(id){
+  var s = SERIES.filter(function(x){return x.id===id;})[0]; if(!s) return;
+  var eps = s.chapters.map(function(c,i){
+    var open=isOpen(s,i), sub;
+    if(!c.body) sub="בחבילת התוכן הבאה";
+    else if(open) sub = S.done[c.id] ? "נקרא" : mins(c.body)+" דקות"+(S.pos[c.id]?" · בתהליך":"");
+    else { var t=unlockAt(s,i); sub = t===null ? "נפתח שבוע אחרי הפרק הקודם" : "נפתח ב"+hebDate(new Date(t)); }
+    return '<button class="ep'+(open?'':' locked')+'" '+(open?'data-go="read/'+c.id+'"':'')+'><div class="n">'+(i+1)+'</div><div><div class="et">'+esc(c.title.replace(/^פרק \d+:\s*/,""))+'</div><div class="es">'+esc(sub)+'</div></div></button>';
+  }).join("");
+  openSheet('<div class="top"><img src="'+esc(s.cover)+'" alt=""><div class="g"></div><button class="x" data-close>✕</button></div><div class="body"><h2>'+esc(s.title)+'</h2><div class="meta"><span class="badge">סדרה</span><span>'+esc(s.topic)+'</span><span class="dot"></span><span>'+s.chapters.length+' פרקים</span></div><div class="why">'+esc(s.subtitle)+'</div><div class="lbl">פרקים</div><div class="eps">'+eps+'</div></div>');
+}
+
+/* ---------- קורא ---------- */
+var current=null, saveT=null;
+function ratio(){ var max=document.documentElement.scrollHeight-window.innerHeight; return max>0?Math.min(1,Math.max(0,window.scrollY/max)):0; }
+window.addEventListener("scroll", function(){
+  if(!current) return;
+  var r=ratio(), bar=document.getElementById("prog"), top=document.getElementById("rtop");
+  if(bar) bar.style.width=(r*100)+"%";
+  if(top) top.classList.toggle("solid", window.scrollY > window.innerHeight*0.55);
+  clearTimeout(saveT);
+  saveT=setTimeout(function(){ if(!current) return; S.pos[current]=r; if(r>0.97) S.done[current]=true; S.last=current; save(); },400);
+},{passive:true});
+
+function nextFor(u){
+  if(u.kind==="chapter"){ var n=u.s.chapters[u.i+1]; if(n && isOpen(u.s,u.i+1)) return UNITS[n.id] && {id:n.id,u:UNITS[n.id]}; }
+  var c = ITEMS.filter(function(a){ return !S.done[a.id] && a.id!==current; });
+  c.sort(function(a,b){ return (b.full?1:0)-(a.full?1:0); });
+  return c[0] ? {id:c[0].id, u:UNITS[c[0].id]} : null;
+}
+function viewRead(id){
+  closeSheet();
+  var u=UNITS[id]; if(!u||!u.body) return go("");
+  if(u.kind==="chapter"){ if(!isOpen(u.s,u.i)) return go(""); if(u.i===0&&!S.start[u.s.id]){ S.start[u.s.id]=Date.now(); save(); } }
+  current=id; S.last=id; save();
+  var a = u.kind==="article" ? u.a : null;
+  var P = parse(u.body);
+  var h = '<div class="prog" id="prog"></div><div class="rtop" id="rtop"><button class="ic" data-go="">→ חזרה</button><span class="ttl">'+esc(u.title)+'</span><span class="sp"></span><button class="ic" data-fs="-1" aria-label="הקטן">א-</button><button class="ic" data-fs="1" aria-label="הגדל">א+</button></div>';
+  h += '<div class="rhero"><img src="'+esc(u.cover)+'" alt=""><div class="g"></div><div class="in"><div class="kicker">'+(a&&a.full?'<span class="badge">סיפור מלא</span>':'')+'<span>'+esc(u.kind==="chapter"?u.s.title:u.topic)+'</span><span class="dot"></span><span>'+mins(u.body)+' דקות</span></div><h1>'+esc(u.title)+'</h1>'+(a?'<p>'+esc(a.subtitle)+'</p>':'')+'</div></div>';
+  h += '<div class="reader">';
+  if(a && a.why){ h += '<div class="whybox"><div class="k">למה לקרוא את זה</div><div class="w">'+esc(a.why)+'</div>'+(a.takeaways?'<div class="lbl" style="margin-top:12px">מה תיקח מזה</div>'+gets(a.takeaways):'')+'</div>'; }
+  if(P.parts.length>2){ h += '<div class="toc">'+P.parts.map(function(p){return '<button data-jump="'+p.id+'">'+esc(p.name)+'</button>';}).join("")+'</div>'; }
+  h += '<div class="prose">'+P.html+'</div>';
+  var nx = nextFor(u), endSmall = 'זה רגע טוב לקום, לשתות מים ולפתוח את היום.';
+  if(u.kind==="chapter"){ var n2=u.s.chapters[u.i+1]; if(n2 && n2.body && !isOpen(u.s,u.i+1)) endSmall += '<br>הפרק הבא נפתח ב'+esc(hebDate(new Date(unlockAt(u.s,u.i+1))))+'.'; }
+  h += '<div class="endc"><div class="big">סוף.</div><div class="small">'+endSmall+'</div></div>';
+  if(nx){ h += '<button class="next" data-go="read/'+nx.id+'"><div class="lbl">הבא בתור, למחר בבוקר</div><div class="wide"><div class="pic"><img loading="lazy" src="'+esc(nx.u.cover)+'" alt=""><div class="g"></div><div class="t">'+esc(nx.u.title)+'</div></div><div class="mini">'+esc(nx.u.topic)+' · '+mins(nx.u.body)+' דקות</div></div></button>'; }
+  h += '</div>';
+  app.innerHTML=h;
+  var saved=S.pos[id]||0;
+  requestAnimationFrame(function(){ var max=document.documentElement.scrollHeight-window.innerHeight; window.scrollTo(0,(saved>0.97?0:saved)*max); });
+}
+function setFont(d){
+  var r=ratio(); S.fs=Math.max(16,Math.min(30,S.fs+d*2));
+  document.documentElement.style.setProperty("--fs",S.fs+"px"); save();
+  requestAnimationFrame(function(){ var max=document.documentElement.scrollHeight-window.innerHeight; window.scrollTo(0,r*max); });
+}
+
+/* ---------- ניווט ---------- */
+function go(p){ location.hash="#/"+p; }
+function route(){
+  if(current){ S.pos[current]=ratio(); if(S.pos[current]>0.97) S.done[current]=true; save(); }
+  current=null;
+  var p=(location.hash||"").replace(/^#\/?/,"").split("/");
+  if(p[0]==="read"&&p[1]) viewRead(p[1]); else { closeSheet(); viewHome(); }
+}
+document.addEventListener("click", function(e){
+  var t=e.target.closest("[data-go],[data-tab],[data-fs],[data-info],[data-sinfo],[data-close],[data-jump]"); if(!t) return;
+  if(t.hasAttribute("data-close")) return closeSheet();
+  if(t.hasAttribute("data-fs")) return setFont(+t.getAttribute("data-fs"));
+  if(t.hasAttribute("data-tab")){ tab=t.getAttribute("data-tab"); return viewHome(); }
+  if(t.hasAttribute("data-info")) return infoArticle(t.getAttribute("data-info"));
+  if(t.hasAttribute("data-sinfo")) return infoSeries(t.getAttribute("data-sinfo"));
+  if(t.hasAttribute("data-jump")){ var el=document.getElementById(t.getAttribute("data-jump")); if(el) window.scrollTo({top:el.getBoundingClientRect().top+window.scrollY-70,behavior:"smooth"}); return; }
+  var g=t.getAttribute("data-go"); if(("#/"+g)===location.hash){ route(); } else go(g);
+});
+window.addEventListener("hashchange", route);
+document.addEventListener("visibilitychange", function(){ if(document.hidden&&current){ S.pos[current]=ratio(); save(); } });
+route();
+
+if("serviceWorker" in navigator && location.protocol==="https:"){ navigator.serviceWorker.register("sw.js").catch(function(){}); }
+})();
+</script>
+</body>
+</html>
