@@ -1,6 +1,6 @@
 // שומר את האפליקציה בטלפון. data/index.json תמיד מנסה קודם מהרשת (כדי לקבל סיפורים חדשים),
 // כל השאר: מהזיכרון מיד, ומתעדכן ברקע כשיש אינטרנט.
-const CACHE = "boker-1795647622";
+const CACHE = "boker-1795734000";
 const CORE = ["./", "index.html", "manifest.json", "icon-180.png", "icon-512.png", "data/index.json",
   "fonts/heebo-he-400.woff2", "fonts/heebo-he-500.woff2", "fonts/heebo-he-700.woff2", "fonts/heebo-he-900.woff2",
   "fonts/heebo-la-400.woff2", "fonts/heebo-la-500.woff2", "fonts/heebo-la-700.woff2", "fonts/heebo-la-900.woff2"];
